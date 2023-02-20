@@ -348,7 +348,7 @@ fn do_indexing(
 
         eprintln!("Time taken: {:?}", now.elapsed());
 
-        println!("{}", outpath);
+        println!("{} {}", start, outpath);
     }
     // print_progress!(args.progress, "Done.");
 

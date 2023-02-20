@@ -53,10 +53,10 @@ struct CliArgs {
     /// The file to be indexed
     #[structopt(parse(from_os_str))]
     input_file: PathBuf,
-    /// The output file.
-    /// If no output filename is specified, input_file.ffindex will be used
+    /// The output folder.
+    /// Default to "." if not specified
     #[structopt(parse(from_os_str))]
-    output_file: PathBuf,
+    output_folder: Option<PathBuf>,
 }
 
 fn update_progress(current: usize, total: usize, private: Option<&mut usize>) -> usize {
@@ -176,7 +176,7 @@ fn do_indexing(
 
     let prop_frame = Frame::GetFrame(video_source, 0).unwrap();
 
-    println!("Pixel format: {}", prop_frame.ConvertedPixelFormat);
+    eprintln!("Pixel format: {}", prop_frame.ConvertedPixelFormat);
 
     let yuv420p = Frame::GetPixFmt("yuv420p");
     let yuyv422 = Frame::GetPixFmt("yuyv422");
@@ -188,14 +188,14 @@ fn do_indexing(
     let width = prop_frame.EncodedWidth as usize;
     let height = prop_frame.EncodedHeight as usize;
 
-    println!("Original width: {}", width);
-    println!("Original height: {}", height);
+    eprintln!("Original width: {}", width);
+    eprintln!("Original height: {}", height);
 
     let scaled_width = prop_frame.ScaledWidth;
     let scaled_height = prop_frame.ScaledHeight;
 
-    println!("Scaled width: {}", scaled_width);
-    println!("Scaled height: {}", scaled_height);
+    eprintln!("Scaled width: {}", scaled_width);
+    eprintln!("Scaled height: {}", scaled_height);
 
     let framerate = Ratio {
         num: video_properties.FPSNumerator as usize,
@@ -238,81 +238,113 @@ fn do_indexing(
         }
     };
 
-    println!("Line size: {:?}", line_size);
-
-    let mut outfile = File::create(&args.output_file).unwrap();
-
-    let mut encoder = encode(width, height, framerate)
-        .with_colorspace(y4m_colorspace)
-        .write_header(&mut outfile)
-        .unwrap();
+    eprintln!("Line size: {:?}", line_size);
 
     // let raw_array: [*const u8; 4] = prop_frame.Data;
     // let slice_array: [&[u8]; 3] = unsafe {
     //     std::mem::transmute(raw_array)
     // };
 
-    for i in 0..100 {
-        let mut frame = Frame::GetFrame(video_source, i).unwrap();
+    // while loop read string from stdin
+    let mut input = String::new();
+    loop {
+        input.clear();
+        // read a line from standard input
+        let _ = std::io::stdin().read_line(&mut input);
 
-        // frame.set_LineSize(&line_size);
-        // Frame::set_LineSize(&mut frame, &line_size);
+        // trim the trailing newline
+        input = input.trim().to_string();
 
-        frame.Linesize[1] /= 2;
-        frame.Linesize[2] /= 2;
+        let start_end_str = input.split(" ").collect::<Vec<&str>>();
 
-        // println!("Line size: {:?}", frame.Linesize);
+        let start = start_end_str[0].parse::<usize>().unwrap();
+        let end = start_end_str[1].parse::<usize>().unwrap();
 
-        // frame.Linesize[1] = 480;
-        // frame.Linesize[2] = 480;
+        eprintln!("Input: {}", input);
+        eprintln!("Reading segment {} to {}", start, end);
 
-        // println!("Frame colorspace: {}", frame.ColorSpace);
-
-        let pixel_data: Vec<Option<&[u8]>> = frame.get_pixel_data();
-
-        // println!("Y plane length: {:?}", pixel_data[0].unwrap().len());
-        // println!("U plane length: {:?}", pixel_data[1].unwrap().len());
-        // println!("V plane length: {:?}", pixel_data[2].unwrap().len());
-
-        // save each plane to a file
-        // let mut y_file = File::create(format!("y_plane_{}.bin", i)).unwrap();
-        // y_file.write_all(pixel_data[0].unwrap()).unwrap();
-        // let mut u_file = File::create(format!("u_plane_{}.bin", i)).unwrap();
-        // u_file.write_all(pixel_data[1].unwrap()).unwrap();
-        // let mut v_file = File::create(format!("v_plane_{}.bin", i)).unwrap();
-        // v_file.write_all(pixel_data[2].unwrap()).unwrap();
-
-        let frame = Y4MFrame::new(
-            [
-                pixel_data[0].unwrap(),
-                pixel_data[1].unwrap(),
-                pixel_data[2].unwrap(),
-            ],
-            None,
+        // join args.output_folder and start and end
+        // default to current directory
+        let ref outpath = format!(
+            "{}/{}-{}.y4m",
+            match args.output_folder {
+                Some(ref folder) => folder.to_str().unwrap(),
+                None => ".",
+            },
+            start,
+            end
         );
 
-        // get xor of all planes
-        // let mut xor = 0;
-        // for plane in pixel_data {
-        //     if let Some(plane) = plane {
-        //         for byte in plane {
-        //             xor ^= *byte;
-        //         }
-        //     }
-        // }
+        let mut outfile = File::create(outpath).unwrap();
 
-        // println!("XOR: {}", xor);
+        let mut encoder = encode(width, height, framerate)
+            .with_colorspace(y4m_colorspace)
+            .write_header(&mut outfile)
+            .unwrap();
 
-        // let mut outfile = File::create("out/".to_owned() + &i.to_string() + ".y4m").unwrap();
+        for i in start..end {
+            let mut frame = Frame::GetFrame(video_source, i).unwrap();
 
-        // let mut encoder = encode(width, height, framerate)
-        //     .with_colorspace(y4m_colorspace)
-        //     .write_header(&mut outfile)
-        //     .unwrap();
+            // frame.set_LineSize(&line_size);
+            // Frame::set_LineSize(&mut frame, &line_size);
 
-        encoder.write_frame(&frame).unwrap();
+            frame.Linesize[1] /= 2;
+            frame.Linesize[2] /= 2;
+
+            // eprintln!("Line size: {:?}", frame.Linesize);
+
+            // frame.Linesize[1] = 480;
+            // frame.Linesize[2] = 480;
+
+            // eprintln!("Frame colorspace: {}", frame.ColorSpace);
+
+            let pixel_data: Vec<Option<&[u8]>> = frame.get_pixel_data();
+
+            // eprintln!("Y plane length: {:?}", pixel_data[0].unwrap().len());
+            // eprintln!("U plane length: {:?}", pixel_data[1].unwrap().len());
+            // eprintln!("V plane length: {:?}", pixel_data[2].unwrap().len());
+
+            // save each plane to a file
+            // let mut y_file = File::create(format!("y_plane_{}.bin", i)).unwrap();
+            // y_file.write_all(pixel_data[0].unwrap()).unwrap();
+            // let mut u_file = File::create(format!("u_plane_{}.bin", i)).unwrap();
+            // u_file.write_all(pixel_data[1].unwrap()).unwrap();
+            // let mut v_file = File::create(format!("v_plane_{}.bin", i)).unwrap();
+            // v_file.write_all(pixel_data[2].unwrap()).unwrap();
+
+            let frame = Y4MFrame::new(
+                [
+                    pixel_data[0].unwrap(),
+                    pixel_data[1].unwrap(),
+                    pixel_data[2].unwrap(),
+                ],
+                None,
+            );
+
+            // get xor of all planes
+            // let mut xor = 0;
+            // for plane in pixel_data {
+            //     if let Some(plane) = plane {
+            //         for byte in plane {
+            //             xor ^= *byte;
+            //         }
+            //     }
+            // }
+
+            // eprintln!("XOR: {}", xor);
+
+            // let mut outfile = File::create("out/".to_owned() + &i.to_string() + ".y4m").unwrap();
+
+            // let mut encoder = encode(width, height, framerate)
+            //     .with_colorspace(y4m_colorspace)
+            //     .write_header(&mut outfile)
+            //     .unwrap();
+
+            encoder.write_frame(&frame).unwrap();
+        }
+
+        println!("{}", outpath);
     }
-
     // print_progress!(args.progress, "Done.");
 
     Ok(())
@@ -321,10 +353,10 @@ fn do_indexing(
 fn main() {
     let args = CliArgs::from_args();
 
-    println!("{:?}", Frame::GetPixFmt("yuv420p"));
-    println!("{:?}", Frame::GetPixFmt("yuyv422"));
-    println!("{:?}", Frame::GetPixFmt("rgb24"));
-    println!("{:?}", Frame::GetPixFmt("yuv420p10le"));
+    // eprintln!("{:?}", Frame::GetPixFmt("yuv420p"));
+    // eprintln!("{:?}", Frame::GetPixFmt("yuyv422"));
+    // eprintln!("{:?}", Frame::GetPixFmt("rgb24"));
+    // eprintln!("{:?}", Frame::GetPixFmt("yuv420p10le"));
 
     // if args.ignore_errors > 3 {
     //     panic!("Error: invalid audio decoding error handling mode");

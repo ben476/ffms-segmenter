@@ -3,6 +3,7 @@ use ffms2::video::VideoSource;
 use std::fs::File;
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 use std::{thread, time};
 use structopt::StructOpt;
 use y4m::{encode, Colorspace, Encoder, Frame as Y4MFrame, Ratio};
@@ -252,6 +253,8 @@ fn do_indexing(
         // read a line from standard input
         let _ = std::io::stdin().read_line(&mut input);
 
+        let now = Instant::now();
+
         // trim the trailing newline
         input = input.trim().to_string();
 
@@ -342,6 +345,8 @@ fn do_indexing(
 
             encoder.write_frame(&frame).unwrap();
         }
+
+        eprintln!("Time taken: {:?}", now.elapsed());
 
         println!("{}", outpath);
     }

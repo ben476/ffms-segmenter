@@ -175,12 +175,15 @@ fn do_indexing(
 
     let video_properties = video_source.GetVideoProperties();
 
+    let total_frames = video_properties.NumFrames;
+
     let prop_frame = Frame::GetFrame(video_source, 0).unwrap();
 
     eprintln!("Pixel format: {}", prop_frame.ConvertedPixelFormat);
 
     let yuv420p = Frame::GetPixFmt("yuv420p");
     let yuyv422 = Frame::GetPixFmt("yuyv422");
+    let yuv422p = Frame::GetPixFmt("yuv422p");
     let rgb24 = Frame::GetPixFmt("rgb24");
     let yuv420p10le = Frame::GetPixFmt("yuv420p10le");
 
@@ -203,9 +206,9 @@ fn do_indexing(
         den: video_properties.FPSDenominator as usize,
     };
 
-    // video_source
-    //     .SetInputFormatV(1 as usize, video::ColorRanges::CR_MPEG, yuv420p as usize)
-    //     .unwrap();
+    video_source
+        .SetInputFormatV(1 as usize, video::ColorRanges::CR_MPEG, yuv420p as usize)
+        .unwrap();
 
     // video_source
     //     .SetOutputFormatV2(pix_fmts, width, height, Resizers::RESIZER_BICUBIC)
@@ -215,15 +218,21 @@ fn do_indexing(
 
     let prop_frame = Frame::GetFrame(video_source, 1).unwrap();
 
+    println!("Pixel format: {}", prop_frame.ConvertedPixelFormat);
+    println!("Colorspace: {}", prop_frame.ColorSpace);
+
     let y4m_colorspace = {
         if prop_frame.ConvertedPixelFormat == yuv420p {
             Colorspace::C420
         } else if prop_frame.ConvertedPixelFormat == yuv420p10le {
             Colorspace::C420p10
+        } else if prop_frame.ConvertedPixelFormat == yuv422p {
+            Colorspace::C422
         } else {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                "Unsupported colorspace: ".to_owned() + &prop_frame.ColorSpace.to_string(),
+                "Unsupported colorspace: ".to_owned()
+                    + &prop_frame.ConvertedPixelFormat.to_string(),
             ));
         }
     };
@@ -231,6 +240,7 @@ fn do_indexing(
     let line_size = match y4m_colorspace {
         Colorspace::C420 => [width, width / 4, width / 4, 0],
         Colorspace::C420p10 => [width * 2, (width / 4) * 2, (width / 4) * 2, 0],
+        Colorspace::C422 => [width, width / 2, width / 2, 0],
         _ => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
@@ -261,7 +271,15 @@ fn do_indexing(
         let start_end_str = input.split(" ").collect::<Vec<&str>>();
 
         let start = start_end_str[0].parse::<usize>().unwrap();
-        let end = start_end_str[1].parse::<usize>().unwrap();
+        let end = {
+            let end = start_end_str[1].parse::<usize>().unwrap();
+
+            if end as i32 > total_frames {
+                total_frames as usize
+            } else {
+                end
+            }
+        };
 
         eprintln!("Input: {}", input);
         eprintln!("Reading segment {} to {}", start, end);
@@ -303,9 +321,9 @@ fn do_indexing(
 
             let pixel_data: Vec<Option<&[u8]>> = frame.get_pixel_data();
 
-            // eprintln!("Y plane length: {:?}", pixel_data[0].unwrap().len());
-            // eprintln!("U plane length: {:?}", pixel_data[1].unwrap().len());
-            // eprintln!("V plane length: {:?}", pixel_data[2].unwrap().len());
+            eprintln!("Y plane length: {:?}", pixel_data[0].unwrap().len());
+            eprintln!("U plane length: {:?}", pixel_data[1].unwrap().len());
+            eprintln!("V plane length: {:?}", pixel_data[2].unwrap().len());
 
             // save each plane to a file
             // let mut y_file = File::create(format!("y_plane_{}.bin", i)).unwrap();
@@ -358,10 +376,11 @@ fn do_indexing(
 fn main() {
     let args = CliArgs::from_args();
 
-    // eprintln!("{:?}", Frame::GetPixFmt("yuv420p"));
-    // eprintln!("{:?}", Frame::GetPixFmt("yuyv422"));
-    // eprintln!("{:?}", Frame::GetPixFmt("rgb24"));
-    // eprintln!("{:?}", Frame::GetPixFmt("yuv420p10le"));
+    eprintln!("{:?}", Frame::GetPixFmt("yuv420p"));
+    eprintln!("{:?}", Frame::GetPixFmt("yuyv422"));
+    eprintln!("{:?}", Frame::GetPixFmt("yuv422p"));
+    eprintln!("{:?}", Frame::GetPixFmt("rgb24"));
+    eprintln!("{:?}", Frame::GetPixFmt("yuv420p10le"));
 
     // if args.ignore_errors > 3 {
     //     panic!("Error: invalid audio decoding error handling mode");

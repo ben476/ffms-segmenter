@@ -321,9 +321,9 @@ fn do_indexing(
 
             let pixel_data: Vec<Option<&[u8]>> = frame.get_pixel_data();
 
-            eprintln!("Y plane length: {:?}", pixel_data[0].unwrap().len());
-            eprintln!("U plane length: {:?}", pixel_data[1].unwrap().len());
-            eprintln!("V plane length: {:?}", pixel_data[2].unwrap().len());
+            // eprintln!("Y plane length: {:?}", pixel_data[0].unwrap().len());
+            // eprintln!("U plane length: {:?}", pixel_data[1].unwrap().len());
+            // eprintln!("V plane length: {:?}", pixel_data[2].unwrap().len());
 
             // save each plane to a file
             // let mut y_file = File::create(format!("y_plane_{}.bin", i)).unwrap();

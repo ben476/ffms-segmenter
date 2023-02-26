@@ -218,8 +218,8 @@ fn do_indexing(
 
     let prop_frame = Frame::GetFrame(video_source, 1).unwrap();
 
-    println!("Pixel format: {}", prop_frame.ConvertedPixelFormat);
-    println!("Colorspace: {}", prop_frame.ColorSpace);
+    eprintln!("Pixel format: {}", prop_frame.ConvertedPixelFormat);
+    eprintln!("Colorspace: {}", prop_frame.ColorSpace);
 
     let y4m_colorspace = {
         if prop_frame.ConvertedPixelFormat == yuv420p {

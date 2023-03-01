@@ -178,8 +178,12 @@ fn do_indexing(
     let prop_frame = Frame::GetFrame(video_source, 0).unwrap();
 
     println!(
-        "{} {} {}",
-        total_frames, prop_frame.EncodedWidth, prop_frame.EncodedHeight
+        "{} {} {} {} {}",
+        prop_frame.EncodedWidth,
+        prop_frame.EncodedHeight,
+        total_frames,
+        video_properties.FPSDenominator,
+        video_properties.FPSNumerator
     );
 
     eprintln!("Pixel format: {}", prop_frame.ConvertedPixelFormat);

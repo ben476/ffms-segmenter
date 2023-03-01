@@ -162,8 +162,6 @@ fn do_indexing(
 
     let video_track_id = index.FirstTrackOfType(TrackType::TYPE_VIDEO).unwrap();
 
-    let video_track = Track::TrackFromIndex(&index, video_track_id);
-
     let ref mut video_source = VideoSource::new(
         &args.input_file,
         video_track_id,
@@ -178,6 +176,11 @@ fn do_indexing(
     let total_frames = video_properties.NumFrames;
 
     let prop_frame = Frame::GetFrame(video_source, 0).unwrap();
+
+    println!(
+        "{} {} {}",
+        total_frames, prop_frame.EncodedWidth, prop_frame.EncodedHeight
+    );
 
     eprintln!("Pixel format: {}", prop_frame.ConvertedPixelFormat);
 

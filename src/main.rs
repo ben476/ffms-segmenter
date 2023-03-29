@@ -27,16 +27,12 @@ struct CliArgs {
     /// Disable progress reporting
     #[structopt(short = "p", long = "progress")]
     progress: bool,
-    /// Set the audio indexing mask to N
-    /// (-1 means index all tracks, 0 means index none)
-    #[structopt(short = "t", long = "index", default_value = "0")]
-    index_mask: i64,
-    /// Set audio decoding error handling
-    #[structopt(short = "s", long = "audio-decoding", default_value = "0")]
-    ignore_errors: usize,
     /// The file to be indexed
     #[structopt(parse(from_os_str))]
     input_file: PathBuf,
+    // If errors should be ignored
+    #[structopt(short = "e", long = "ignore-errors", default_value = "0")]
+    ignore_errors: usize,
     /// The output folder.
     /// Default to "." if not specified
     #[structopt(parse(from_os_str))]
@@ -65,16 +61,6 @@ fn do_indexing(args: &CliArgs, ignore_errors: IndexErrorHandling) -> std::io::Re
     if args.progress {
         update_progress(0, 100, None);
         indexer.ProgressCallback(update_progress, &mut progress);
-    }
-
-    if args.index_mask == -1 {
-        indexer.TrackTypeIndexSettings(TrackType::TYPE_AUDIO, 1);
-    }
-
-    for i in 0..64 {
-        if ((args.index_mask >> i) & 1) != 0 {
-            indexer.TrackIndexSettings(i, 1);
-        }
     }
 
     let index = indexer.DoIndexing2(ignore_errors).unwrap();
@@ -263,5 +249,6 @@ fn main() {
         2 => IndexErrorHandling::IEH_CLEAR_TRACK,
         _ => IndexErrorHandling::IEH_ABORT,
     };
+
     do_indexing(&args, ignore_errors).unwrap();
 }
